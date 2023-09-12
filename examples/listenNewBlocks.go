@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client"
-	"github.com/centrifuge/go-substrate-rpc-client/v4/config"
-	"runtime/debug"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v4"
 )
 
 func main() {
@@ -12,19 +10,29 @@ func main() {
 	// updates
 	//
 	// NOTE: The example runs until you stop it with CTRL+C
-	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
+
+	api, err := gsrpc.NewSubstrateAPI("wss://westend.api.onfinality.io/public-ws")
 	if err != nil {
-		fmt.Println("Error occurred:", err)
-		debug.PrintStack()
+		fmt.Printf("Error occurred while connecting: %s\n", err)
 		return
 	}
 
-	res, err := api.RPC.Author.PendingExtrinsics()
-	fmt.Printf("Pending extrinsics: %v\n", res)
-	meta, err := api.RPC.State.GetMetadataLatest()
+	sub, err := api.RPC.Chain.SubscribeNewHeads()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("meta: %v\n", meta)
+	defer sub.Unsubscribe()
 
+	count := 0
+
+	for {
+		head := <-sub.Chan()
+		fmt.Printf("Chain is at block: #%v\n", head.Number)
+		count++
+
+		if count == 10 {
+			sub.Unsubscribe()
+			break
+		}
+	}
 }
